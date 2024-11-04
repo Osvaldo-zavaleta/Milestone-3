@@ -1,46 +1,65 @@
-# Milestone-3
-
-import os
-import openai
+python --version
+pip install streamlit easyocr requests pillow openai
+streamlit run app.py
 import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-from openai import OpenAI
-
-OPENAI_API_KEY=("your_open_api_key_here")
-
-client = OpenAI()
-
-# Import necessary libraries
-
 import easyocr
-import cv2
-import matplotlib.pyplot as plt
+import requests
+from PIL import Image
+import io
+import numpy as np
+import openai
 
+# Set your OpenAI API key
+openai.api_key = "your_open_api_key_here"
 
-# Function to extract text from an image
-def extract_text_from_image(image_path):
+# Function to extract text from an image URL
+def extract_text_from_image(image_url):
     # Initialize the EasyOCR reader
-    reader = easyocr.Reader(['en'])  # Specify the language(s)
-    
-#read the image
-img = cv2.imread(image_path)
+    reader = easyocr.Reader(['en'])
 
-#Perform OCR on the image
-results = reader.readtext(img)
+# Download the image
+response = requests.get(image_url)
+img = Image.open(io.BytesIO(response.content))
 
-#display the results
-for (bbox, text, prob) in results:
-(top_left, top_right, bottom_right, bottom_left) = bbox
-        print(f'Text: {text}, Probability: {prob:.2f}')
+#perform OCR on the image
+results = reader.readtext(np.array(img))
 
-# Draw bounding box around detected text
-cv2.rectangle(img, (int(top_left[0]), int(top_left[1])), 
-(int(bottom_right[0]), int(bottom_right[1])), 
-(0, 255, 0), 2)
+#extract text and probabilities 
+    extracted_text = ""
+    for (bbox, text, prob) in results:
+        extracted_text += f'Text: {text}, Probability: {prob:.2f}\n'
 
-# Show the image with detected text
-plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+return extracted_text, img
+
+# Function to summarize text using OpenAI
+def summarize_text(text):
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+{"role": "user", "content": f"Please summarize the following text:\n\n{text}"}
+        ]
+    )
+    return response['choices'][0]['message']['content']
+
+# Streamlit app
+st.title("OCR and Text Analysis with OpenAI")
+
+# Input for image URL
+image_url = st.text_input("Enter Image URL:", "https://cdn.discordapp.com/attachments/1295748105546891401/1302854084184772679/Water-Test-Result-1-1024x576.jpg?ex=6729a0eb&is=67284f6b&hm=b68d19552dd599582a18b709235ada55dfe6cb092166be8dcaa9bb61b338c8e3&")
+
+if st.button("Extract Text"):
+    with st.spinner("Extracting text..."):
+        extracted_text, img = extract_text_from_image(image_url)
+        st.image(img, caption='Uploaded Image', use_column_width=True)
+        st.subheader("Extracted Text:")
+        st.write(extracted_text)
+
+#summarie the extracted text
+if st.button("Summarize Text"):
+    with st.spinner("Summarizing..."):
+summary = summarize_text(extracted_text)
+st.subheader("Summary:")
+st.write(summary)
 plt.axis('off')
 plt.show()
 
