@@ -63,5 +63,3 @@ st.write(summary)
 plt.axis('off')
 plt.show()
 
-# Example usage
-extract_text_from_image('path_to_your_image.jpg')
